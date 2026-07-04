@@ -11,6 +11,9 @@ python = ">=3.12,<4.0"
 Django = "^6.0"
 djangorestframework = "^3.17"
 python-dotenv = "^1.0"
+pandas = "^3.0.3"
+pyarrow = "^24.0.0"
+duckdb = "^1.5.4"
 
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.9"
