@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Django
+*.log
+db.sqlite3
+db.sqlite3-*
+
+# Env
+.env
+
+# Data (Parquet store and local caches)
+/data/
+/_cache/
+
+# OS
+.DS_Store
