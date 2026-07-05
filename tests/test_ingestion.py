@@ -266,6 +266,20 @@ def test_seed_watchlist_is_idempotent():
 
 
 @pytest.mark.django_db
+def test_seed_watchlist_reconciles_off_roster():
+    stale = Instrument.objects.create(
+        instrument_type=InstrumentType.EQUITY, exchange=Exchange.NSE, symbol="ZZZDELISTED"
+    )
+    Watchlist.objects.create(underlying=stale, track_equity=True, is_active=True)
+
+    call_command("seed_watchlist")
+
+    assert Watchlist.objects.get(underlying=stale).is_active is False
+    assert Watchlist.objects.get(underlying__symbol="RELIANCE").is_active is True
+    assert Watchlist.objects.get(underlying__symbol="NIFTY").is_active is True  # index untouched
+
+
+@pytest.mark.django_db
 def test_upsert_is_idempotent():
     u = Instrument.objects.create(
         instrument_type=InstrumentType.EQUITY, exchange=Exchange.NSE, symbol="SBIN"

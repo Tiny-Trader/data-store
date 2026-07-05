@@ -79,9 +79,22 @@ class Command(BaseCommand):
                 },
             )
 
+        # Reconcile the equity roster: the file is authoritative, so equity
+        # entries no longer listed (e.g. removed on an index reshuffle) are
+        # deactivated rather than left to fail daily. Index and any other
+        # entries are managed explicitly above and untouched here.
+        deactivated = (
+            Watchlist.objects.filter(
+                is_active=True, underlying__instrument_type=InstrumentType.EQUITY
+            )
+            .exclude(underlying__symbol__in=stocks)
+            .update(is_active=False)
+        )
+
         self.stdout.write(
             self.style.SUCCESS(
                 f"seeded {len(stocks)} stocks + {len(INDICES)} indices; "
-                f"watchlist now {Watchlist.objects.count()} entries"
+                f"deactivated {deactivated} off-roster; "
+                f"watchlist now {Watchlist.objects.filter(is_active=True).count()} active"
             )
         )
