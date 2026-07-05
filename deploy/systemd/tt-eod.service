@@ -1,0 +1,14 @@
+[Unit]
+Description=tiny-trader EOD candle sync
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+# Adjust User and WorkingDirectory to your VPS layout.
+User=apurv
+WorkingDirectory=/opt/tiny-trader/data-store
+# Credentials live in the gitignored .env (loaded by settings).
+ExecStart=/usr/bin/poetry run python manage.py sync_eod
+Restart=on-failure
+RestartSec=120

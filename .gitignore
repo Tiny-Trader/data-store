@@ -17,6 +17,7 @@ db.sqlite3-*
 # Data (Parquet store and local caches)
 /data/
 /_cache/
+/logs/
 
 # OS
 .DS_Store

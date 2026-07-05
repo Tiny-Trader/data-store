@@ -11,6 +11,7 @@ tt-connect models. Ingestion bridges tt-connect ``Candle`` objects to this layer
 from __future__ import annotations
 
 import os
+from datetime import date
 from pathlib import Path
 
 import pandas as pd
@@ -62,6 +63,28 @@ def write(instrument: Instrument, frame: pd.DataFrame) -> int:
         _merge_write(paths.contract_file(instrument), df)
 
     return len(df)
+
+
+def has_day(instrument: Instrument, day: date) -> bool:
+    """True if any candle for ``day`` is already stored.
+
+    Used as the resumable-run completion check: writes are atomic per file, so a
+    present day is a complete day and can be safely skipped on re-run.
+    """
+    if paths.is_year_partitioned(instrument):
+        path = paths.file_for_year(instrument, day.year)
+    else:
+        path = paths.contract_file(instrument)
+    if not path.exists():
+        return False
+    ts = pd.read_parquet(path, engine="pyarrow", columns=["ts"])["ts"]
+    if ts.empty:
+        return False
+    if ts.dt.tz is None:
+        ts = ts.dt.tz_localize(schema.IST)
+    else:
+        ts = ts.dt.tz_convert(schema.IST)
+    return bool((ts.dt.date == day).any())
 
 
 def read_raw(instrument: Instrument, start_year: int, end_year: int) -> pd.DataFrame:

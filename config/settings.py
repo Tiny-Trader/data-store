@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "rest_framework",
     "catalog",
+    "ingestion",
 ]
 
 MIDDLEWARE = [
@@ -117,3 +118,36 @@ REST_FRAMEWORK = {
 # Root directory for Parquet candle/OHLCV files.
 
 PARQUET_ROOT = Path(os.getenv("PARQUET_ROOT", BASE_DIR / "data")).resolve()
+
+# Default broker for the EOD sync job. Credentials are read at run time from a
+# per-broker JSON env var, e.g. TT_ZERODHA_CONFIG.
+DEFAULT_BROKER = os.getenv("DEFAULT_BROKER", "angelone")
+
+# EOD runner: request pacing (seconds between broker calls) and retry attempts.
+EOD_MIN_INTERVAL_SEC = float(os.getenv("EOD_MIN_INTERVAL_SEC", "0.4"))
+EOD_MAX_RETRIES = int(os.getenv("EOD_MAX_RETRIES", "3"))
+
+# --- Logging ----------------------------------------------------------------
+# Ingestion logs to console + a rolling-friendly file; failures are greppable.
+
+LOGS_DIR = BASE_DIR / "logs"
+LOGS_DIR.mkdir(exist_ok=True)
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "simple": {"format": "%(asctime)s %(levelname)s %(name)s %(message)s"},
+    },
+    "handlers": {
+        "console": {"class": "logging.StreamHandler", "formatter": "simple"},
+        "eod_file": {
+            "class": "logging.FileHandler",
+            "filename": str(LOGS_DIR / "eod.log"),
+            "formatter": "simple",
+        },
+    },
+    "loggers": {
+        "ingestion": {"handlers": ["console", "eod_file"], "level": "INFO", "propagate": False},
+    },
+}
