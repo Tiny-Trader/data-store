@@ -17,6 +17,7 @@ its durable catalog; `tt-connect` is the ingestion-time resolver).
 - Python 3.14 (pinned via `.python-version`; managed with pyenv)
 - Django 6.0 + Django REST Framework
 - Poetry for dependency management
+- `tt-connect` (git dependency) for broker-backed discovery and candle pulls
 
 ## Setup
 
@@ -24,7 +25,7 @@ its durable catalog; `tt-connect` is the ingestion-time resolver).
 cd data-store
 poetry env use "$(pyenv which python)"
 poetry install
-cp .env.example .env        # then edit as needed
+cp .env.example .env        # broker creds: TT_<BROKER>_CONFIG JSON blobs
 make migrate
 make run                    # http://localhost:8000/admin/
 ```
@@ -33,6 +34,13 @@ Create an admin user to browse the catalog:
 
 ```bash
 make superuser
+```
+
+Seed the tracked universe (NIFTY50 equities + NIFTY/SENSEX F&O), then sync a day:
+
+```bash
+poetry run python manage.py seed_watchlist
+poetry run python manage.py sync_eod --date YYYY-MM-DD --broker angelone
 ```
 
 ## Commands
@@ -53,9 +61,10 @@ make run          # dev server
 data-store/
 ├── config/            # Django project (settings, urls, wsgi/asgi)
 ├── catalog/           # Instrument/contract catalog (system of record)
-│   ├── enums.py       # canonical enums mirrored from tt-connect
-│   ├── models.py      # Instrument, BrokerToken
-│   └── admin.py
+├── candles/           # Parquet paths, schema, write, DuckDB read/resample
+├── ingestion/         # Watchlist, tt-connect bridge, EOD sync
+├── scripts/           # One-off backfill (not part of the daily job)
+├── deploy/systemd/    # Weekday EOD timer (18:30 IST)
 └── manage.py
 ```
 
@@ -83,6 +92,18 @@ coarser intervals on read.
   30-/60-minute candles match broker conventions. Volume sums; OI takes the last
   value in the bucket (a level, not a flow).
 
+## Ingestion (EOD)
+
+Tracking is declared at the **underlying** level via `Watchlist` (admin-editable
+or `seed_watchlist`). The daily job expands each entry at run time into concrete
+contracts — nearest `n_expiries` and, for options, ATM ± `strike_window` strikes
+(ATM ≈ median listed strike) — so F&O rolls need no hand-managed contract list.
+
+`sync_eod` fetches one trading day of 1-minute candles via `tt-connect`, writes
+through the broker-agnostic Parquet layer, and updates `data_start`/`data_end`.
+It is paced, retried with backoff, and resumable (already-stored instrument-days
+are skipped unless `--force`). Schedule: `deploy/systemd/` (Mon–Fri 18:30 IST).
+
 ## Chains
 
 Option/future chains are a **view, not a separate store**. The contract roster
@@ -94,20 +115,21 @@ needed, that would be a separate product.)
 
 ## Backfill & data sources
 
-The store is fed by (a) ongoing t-1 update runs and (b) a historical backfill of
-~5 years. Backfill data may be **purchased/uploaded** or pulled via `tt-connect`
-across **multiple brokers**. Sources are **complementary — they fill gaps, not
-overwrite each other** (this is a backtesting store, not a professional-grade
-multi-source feed), so no per-candle provenance or conflict resolution is
-tracked. Because `storage.write()` is broker-agnostic (it takes a plain frame),
-vendor uploads and broker pulls share the same write path. Coverage/gaps are
-derived from stored data when needed rather than tracked in a separate ledger.
+Ongoing updates are the EOD job above. Historical backfill is a **manual**
+operation (`scripts/backfill_candles.py`), chunked for broker per-request limits.
+Backfill data may also be **purchased/uploaded**. Sources are **complementary —
+they fill gaps, not overwrite each other** (this is a backtesting store, not a
+professional-grade multi-source feed), so no per-candle provenance or conflict
+resolution is tracked. Because `storage.write()` is broker-agnostic (it takes a
+plain frame), vendor uploads and broker pulls share the same write path.
+Coverage/gaps are derived from stored data when needed rather than tracked in a
+separate ledger.
 
 ## Status
 
-In place: project skeleton, IST-aware settings, the durable instrument catalog +
-admin, and the Parquet candle layer (write + DuckDB read/resample) with tests.
+In place: IST-aware settings, durable catalog + admin, Parquet candle layer
+(write + DuckDB read/resample), watchlist + `tt-connect` EOD ingestion,
+backfill script, systemd scheduling, and tests.
 
-Not yet built: `tt-connect`-backed ingestion (bridging `Candle` objects + catalog
-population), a purchased-data upload path, the chain view helper, REST API
-endpoints, and scheduling.
+Not yet built: purchased-data upload path, chain view helper, and REST API
+endpoints for consumers.
