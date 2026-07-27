@@ -1,26 +1,18 @@
-# EOD sync (systemd)
+# systemd units
 
-Daily end-of-day candle sync for the watchlist. The job is idempotent and
-resumable (already-stored instrument-days are skipped), so a missed or crashed
-run is safe to re-run — `Persistent=true` + `Restart=on-failure` handle that.
-
-## Install (on the VPS)
-
-Adjust `User` and `WorkingDirectory` in `tt-eod.service`, then:
+See [`../README.md`](../README.md) for the full prototype deploy path.
 
 ```bash
-sudo cp tt-eod.service tt-eod.timer /etc/systemd/system/
+sudo cp tt-api.service tt-eod.service tt-eod.timer /etc/systemd/system/
 sudo systemctl daemon-reload
+sudo systemctl enable --now tt-api.service
 sudo systemctl enable --now tt-eod.timer
 ```
 
-## Operate
+| Unit | Role |
+|------|------|
+| `tt-api.service` | gunicorn API on `:8000` |
+| `tt-eod.service` | oneshot `sync_eod` |
+| `tt-eod.timer` | weekdays 18:30 IST |
 
-```bash
-systemctl list-timers tt-eod.timer      # next run
-systemctl start tt-eod.service          # run now (manual)
-journalctl -u tt-eod.service -f         # live logs
-```
-
-Failures are also logged to `logs/eod.log` in the working directory. To re-run a
-specific day: `poetry run python manage.py sync_eod --date YYYY-MM-DD`.
+Fix `User`, `WorkingDirectory`, and the Poetry path (`which poetry`) before enabling.

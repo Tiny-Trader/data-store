@@ -276,6 +276,29 @@ files = [
 all = ["adbc-driver-manager", "fsspec", "ipython", "numpy", "pandas", "pyarrow"]
 
 [[package]]
+name = "gunicorn"
+version = "26.0.0"
+description = "WSGI HTTP Server for UNIX"
+optional = false
+python-versions = ">=3.10"
+groups = ["main"]
+files = [
+    {file = "gunicorn-26.0.0-py3-none-any.whl", hash = "sha256:40233d26a5f0d1872916188c276e21641155111c2853f0c2cd55260aec0d24fc"},
+    {file = "gunicorn-26.0.0.tar.gz", hash = "sha256:ca9346f85e3a4aeeb64d491045c16b9a35647abd37ea15efe53080eb8b090baf"},
+]
+
+[package.dependencies]
+packaging = "*"
+
+[package.extras]
+fast = ["gunicorn_h1c (>=0.6.5)"]
+gevent = ["gevent (>=24.10.1)"]
+http2 = ["h2 (>=4.1.0)"]
+setproctitle = ["setproctitle"]
+testing = ["coverage", "gevent (>=24.10.1)", "h2 (>=4.1.0)", "httpx[http2]", "pytest", "pytest-asyncio", "pytest-cov", "uvloop (>=0.19.0)"]
+tornado = ["tornado (>=6.5.0)"]
+
+[[package]]
 name = "h11"
 version = "0.16.0"
 description = "A pure-Python, bring-your-own-I/O implementation of HTTP/1.1"
@@ -421,7 +444,7 @@ version = "26.2"
 description = "Core utilities for Python packages"
 optional = false
 python-versions = ">=3.8"
-groups = ["dev"]
+groups = ["main", "dev"]
 files = [
     {file = "packaging-26.2-py3-none-any.whl", hash = "sha256:5fc45236b9446107ff2415ce77c807cee2862cb6fac22b8a73826d0693b0980e"},
     {file = "packaging-26.2.tar.gz", hash = "sha256:ff452ff5a3e828ce110190feff1178bb1f2ea2281fa2075aadb987c2fb221661"},
@@ -943,7 +966,7 @@ websockets = ">=12.0"
 
 [package.source]
 type = "git"
-url = "ssh://git@github.com/Tiny-Trader/connect.git"
+url = "https://github.com/Tiny-Trader/connect.git"
 reference = "v0.9.1"
 resolved_reference = "9edd5800f35d4f4834975d3ed6691217ea6888bb"
 
@@ -1058,7 +1081,22 @@ files = [
     {file = "websockets-16.0.tar.gz", hash = "sha256:5f6261a5e56e8d5c42a4497b364ea24d94d9563e8fbd44e78ac40879c60179b5"},
 ]
 
+[[package]]
+name = "whitenoise"
+version = "6.12.0"
+description = "Radically simplified static file serving for WSGI applications"
+optional = false
+python-versions = ">=3.10"
+groups = ["main"]
+files = [
+    {file = "whitenoise-6.12.0-py3-none-any.whl", hash = "sha256:fc5e8c572e33ebf24795b47b6a7da8da3c00cff2349f5b04c02f28d0cc5a3cc2"},
+    {file = "whitenoise-6.12.0.tar.gz", hash = "sha256:f723ebb76a112e98816ff80fcea0a6c9b8ecde835f8ddda25df7a30a3c2db6ad"},
+]
+
+[package.extras]
+brotli = ["brotli"]
+
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12,<4.0"
-content-hash = "9834c774e0dd9e448e7e8ce2b0b4f1d6361d37cc8d28915beacd2a6a8c31c221"
+content-hash = "c59005971463764355fad51cb8e347a7d0b0313ab1235307dd7cba7aef11edf5"

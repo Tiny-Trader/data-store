@@ -14,7 +14,9 @@ python-dotenv = "^1.0"
 pandas = "^3.0.3"
 pyarrow = "^24.0.0"
 duckdb = "^1.5.4"
-tt-connect = {git = "ssh://git@github.com/Tiny-Trader/connect.git", rev = "v0.9.1"}
+tt-connect = {git = "https://github.com/Tiny-Trader/connect.git", rev = "v0.9.1"}
+gunicorn = "^26.0.0"
+whitenoise = "^6.12.0"
 
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.9"

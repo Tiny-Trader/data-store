@@ -64,10 +64,12 @@ data-store/
 ├── candles/           # Parquet paths, schema, write, DuckDB read/resample
 ├── ingestion/         # Watchlist, tt-connect bridge, EOD sync
 ├── api/               # Read-only REST: health, candles, chains
+├── deploy/            # Prototype EC2: systemd API + EOD timer
 ├── scripts/           # One-off backfill (not part of the daily job)
-├── deploy/systemd/    # Weekday EOD timer (18:30 IST)
 └── manage.py
 ```
+
+Prototype host setup: [`deploy/README.md`](deploy/README.md).
 
 ## REST API
 

@@ -21,3 +21,8 @@ db.sqlite3-*
 
 # OS
 .DS_Store
+
+# Local EC2 private keys + host inventory (IPs, etc.)
+deploy/keys/
+deploy/host.local
+staticfiles/

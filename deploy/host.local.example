@@ -1,0 +1,12 @@
+# Local deploy target — copy to host.local and fill in.
+# host.local is gitignored; never commit real IPs or keys.
+
+# SSH target: either user@ip or an alias from ~/.ssh/config
+DEPLOY_HOST=ubuntu@YOUR.EIP.OR.DNS
+DEPLOY_KEY=deploy/keys/tiny-trader-key.pem
+
+# Host used in curl examples (usually the same EIP/DNS, no user@)
+DEPLOY_API_HOST=YOUR.EIP.OR.DNS
+
+# Optional: paste API_KEY here for local smoke curls only (server .env is source of truth)
+# API_KEY=
