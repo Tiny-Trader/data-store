@@ -63,9 +63,43 @@ data-store/
 ├── catalog/           # Instrument/contract catalog (system of record)
 ├── candles/           # Parquet paths, schema, write, DuckDB read/resample
 ├── ingestion/         # Watchlist, tt-connect bridge, EOD sync
+├── api/               # Read-only REST: health, candles, chains
 ├── scripts/           # One-off backfill (not part of the daily job)
 ├── deploy/systemd/    # Weekday EOD timer (18:30 IST)
 └── manage.py
+```
+
+## REST API
+
+Read-only surface for consumers (e.g. the backtester). Set `API_KEY` in `.env`
+on hosted instances; when unset, auth is open (local/dev). Send
+`X-API-Key: …` or `Authorization: Bearer …` on protected routes.
+
+| Method | Path | Auth | Notes |
+|--------|------|------|-------|
+| `GET` | `/api/health/` | no | `{"status":"ok"}` |
+| `GET` | `/api/candles/` | yes | OHLCV(+OI) via DuckDB reader |
+| `GET` | `/api/chains/futures/` | yes | Metadata for contracts covering `date` |
+| `GET` | `/api/chains/options/` | yes | Same; **`expiry` required** |
+
+**Candles** — identify by `key=…` or composite (`exchange`, `symbol`,
+`instrument_type`, plus F&O fields). Also: `interval` (default `day`),
+`start`, `end` (ISO-8601). Range caps apply (e.g. 1m ≤ 5 days).
+
+```bash
+curl -H "X-API-Key: $API_KEY" \
+  "http://localhost:8000/api/candles/?key=NSE:NIFTY:INDEX&interval=day&start=2024-06-03T00:00:00%2B05:30&end=2024-06-04T00:00:00%2B05:30"
+```
+
+**Chains** — catalog ∩ coverage on day `D` (`data_start ≤ D ≤ data_end`).
+Metadata only (key, expiry, strike, …); no OHLC in the response. This is the
+**tracked** window (ATM ± K), not the full exchange chain.
+
+```bash
+curl -H "X-API-Key: $API_KEY" \
+  "http://localhost:8000/api/chains/futures/?underlying=NIFTY&exchange=NSE&date=2024-06-03"
+curl -H "X-API-Key: $API_KEY" \
+  "http://localhost:8000/api/chains/options/?underlying=NIFTY&exchange=NSE&date=2024-06-03&expiry=2024-06-27"
 ```
 
 ## Catalog model
@@ -129,7 +163,8 @@ separate ledger.
 
 In place: IST-aware settings, durable catalog + admin, Parquet candle layer
 (write + DuckDB read/resample), watchlist + `tt-connect` EOD ingestion,
-backfill script, systemd scheduling, and tests.
+backfill script, systemd scheduling, read-only REST API (health / candles /
+chains), and tests.
 
-Not yet built: purchased-data upload path, chain view helper, and REST API
-endpoints for consumers.
+Not yet built: purchased-data upload path; chain day-snapshot (OHLCV in chain
+response).

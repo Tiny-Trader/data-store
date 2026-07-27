@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "catalog",
     "ingestion",
+    "api",
 ]
 
 MIDDLEWARE = [
@@ -113,6 +114,9 @@ REST_FRAMEWORK = {
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.LimitOffsetPagination",
     "PAGE_SIZE": 100,
 }
+
+# Shared secret for /api/candles and /api/chains/*. Empty = open (local/dev only).
+API_KEY = os.getenv("API_KEY", "")
 
 # --- data-store -------------------------------------------------------------
 # Root directory for Parquet candle/OHLCV files.
