@@ -25,10 +25,10 @@ class Watchlist(TimeStampedModel):
     track_futures = models.BooleanField(default=False)
     track_options = models.BooleanField(default=False)
     n_expiries = models.PositiveSmallIntegerField(
-        default=2, help_text="Nearest N expiries to pull for F&O"
+        default=5, help_text="Nearest N expiries to pull for F&O"
     )
     strike_window = models.PositiveSmallIntegerField(
-        default=10, help_text="ATM +/- K strikes to pull for options"
+        default=20, help_text="ATM +/- K strikes to pull for options"
     )
     is_active = models.BooleanField(default=True)
 

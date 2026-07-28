@@ -31,8 +31,8 @@ ITC
 JSWSTEEL
 KOTAKBANK
 LT
-# LTIM (LTIMindtree) — not present in AngelOne's master under LTIM*; verify series.
-LTIM
+# LTM Limited (formerly LTIMindtree); NSE symbol changed LTIM → LTM on 2026-02-27.
+LTM
 # Tata Motors demerged (2025); passenger-vehicle successor lists as TMPV.
 TMPV
 M&M

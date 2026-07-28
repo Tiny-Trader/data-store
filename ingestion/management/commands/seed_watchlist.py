@@ -41,8 +41,8 @@ class Command(BaseCommand):
     help = "Seed catalog underlyings and watchlist entries for the tracked universe."
 
     def add_arguments(self, parser: CommandParser) -> None:
-        parser.add_argument("--n-expiries", type=int, default=3)
-        parser.add_argument("--strike-window", type=int, default=10)
+        parser.add_argument("--n-expiries", type=int, default=5)
+        parser.add_argument("--strike-window", type=int, default=20)
 
     def _ensure_underlying(self, symbol: str, exchange: str, itype: str) -> Instrument:
         inst, _ = Instrument.objects.get_or_create(
