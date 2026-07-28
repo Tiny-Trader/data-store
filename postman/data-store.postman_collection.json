@@ -1,0 +1,567 @@
+{
+  "info": {
+    "_postman_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "name": "tiny-trader data-store",
+    "description": "Read-only REST API for historical (t-1) Indian market data.\n\n**Auth:** When `API_KEY` is set on the server, protected routes require `X-API-Key` or `Authorization: Bearer <key>`. Health is public. When `API_KEY` is unset (local/dev), protected routes are open.\n\n**Candles:** Identify by `key=…` or composite fields (`exchange`, `symbol`, `instrument_type`, plus F&O fields). `interval` defaults to `day`. `start`/`end` are ISO-8601; naive datetimes are treated as Asia/Kolkata. Range caps apply (e.g. `1minute` ≤ 5 days). **Timezone offsets:** encode `+` as `%2B` in query strings (e.g. `...T00:00:00%2B05:30`); a bare `+` becomes a space and breaks parsing. Prefer Postman params (auto-encode) or `requests.get(url, params={...})`.\n\n**Chains:** Metadata only for tracked contracts with coverage on `date` (`data_start ≤ date ≤ data_end`). Options accept an optional `expiry` filter. This is the ATM ± K watchlist window, not the full exchange chain.\n\nSet collection variables `baseUrl` and `apiKey` before calling protected endpoints.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "apikey",
+    "apikey": [
+      { "key": "key", "value": "X-API-Key", "type": "string" },
+      { "key": "value", "value": "{{apiKey}}", "type": "string" },
+      { "key": "in", "value": "header", "type": "string" }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8000",
+      "type": "string"
+    },
+    {
+      "key": "apiKey",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "sampleDate",
+      "value": "2026-07-28",
+      "type": "string"
+    },
+    {
+      "key": "niftyOptionExpiry",
+      "value": "2026-08-11",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "description": "Liveness probe. No auth.",
+      "item": [
+        {
+          "name": "Health check",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/health/",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "health", ""]
+            },
+            "description": "Returns `{\"status\":\"ok\"}`. Public even when `API_KEY` is configured."
+          },
+          "response": [
+            {
+              "name": "ok",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/health/",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "health", ""]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"status\": \"ok\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Candles",
+      "description": "OHLCV(+OI) for one instrument. Auth required when `API_KEY` is set.\n\n**Intervals:** `1minute`, `3minute`, `5minute`, `10minute`, `15minute`, `30minute`, `60minute`, `day` (default).\n\n**Max span:** 1m→5d, 3m→15d, 5m/10m→30d, 15m→60d, 30m→90d, 60m→180d, day→5y.",
+      "item": [
+        {
+          "name": "Index — daily by key (NIFTY)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/candles/?key=NSE:NIFTY:INDEX&interval=day&start=2026-07-01T00:00:00%2B05:30&end=2026-07-29T00:00:00%2B05:30",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "candles", ""],
+              "query": [
+                {
+                  "key": "key",
+                  "value": "NSE:NIFTY:INDEX",
+                  "description": "Canonical instrument key"
+                },
+                {
+                  "key": "interval",
+                  "value": "day",
+                  "description": "Aggregation interval (default: day)"
+                },
+                {
+                  "key": "start",
+                  "value": "2026-07-01T00:00:00%2B05:30",
+                  "description": "Inclusive start (ISO-8601)"
+                },
+                {
+                  "key": "end",
+                  "value": "2026-07-29T00:00:00%2B05:30",
+                  "description": "Exclusive-ish end bound (must be after start)"
+                }
+              ]
+            },
+            "description": "Daily bars for the NIFTY index resolved by `key`."
+          },
+          "response": []
+        },
+        {
+          "name": "Index — 1-minute by key (NIFTY)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/candles/?key=NSE:NIFTY:INDEX&interval=1minute&start=2026-07-28T09:15:00%2B05:30&end=2026-07-28T15:30:00%2B05:30",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "candles", ""],
+              "query": [
+                { "key": "key", "value": "NSE:NIFTY:INDEX" },
+                { "key": "interval", "value": "1minute" },
+                { "key": "start", "value": "2026-07-28T09:15:00%2B05:30" },
+                { "key": "end", "value": "2026-07-28T15:30:00%2B05:30" }
+              ]
+            },
+            "description": "Single-session 1m candles. Max span for `1minute` is 5 days."
+          },
+          "response": []
+        },
+        {
+          "name": "Equity — daily by key (LTM)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/candles/?key=NSE:LTM:EQUITY&interval=day&start=2026-07-28T00:00:00%2B05:30&end=2026-07-29T00:00:00%2B05:30",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "candles", ""],
+              "query": [
+                { "key": "key", "value": "NSE:LTM:EQUITY" },
+                { "key": "interval", "value": "day" },
+                { "key": "start", "value": "2026-07-28T00:00:00%2B05:30" },
+                { "key": "end", "value": "2026-07-29T00:00:00%2B05:30" }
+              ]
+            },
+            "description": "Equity candle lookup (LTIM renamed to LTM on NSE)."
+          },
+          "response": []
+        },
+        {
+          "name": "Equity — by composite fields",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/candles/?exchange=NSE&symbol=RELIANCE&instrument_type=EQUITY&interval=day&start=2026-07-28T00:00:00%2B05:30&end=2026-07-29T00:00:00%2B05:30",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "candles", ""],
+              "query": [
+                {
+                  "key": "exchange",
+                  "value": "NSE",
+                  "description": "Required with symbol + instrument_type when key is omitted"
+                },
+                { "key": "symbol", "value": "RELIANCE" },
+                {
+                  "key": "instrument_type",
+                  "value": "EQUITY",
+                  "description": "EQUITY | INDEX | FUTURE | OPTION"
+                },
+                { "key": "interval", "value": "day" },
+                { "key": "start", "value": "2026-07-28T00:00:00%2B05:30" },
+                { "key": "end", "value": "2026-07-29T00:00:00%2B05:30" }
+              ]
+            },
+            "description": "Resolve equity/index without a canonical `key`."
+          },
+          "response": []
+        },
+        {
+          "name": "Futures — by composite fields",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/candles/?exchange=NFO&symbol=NIFTY&instrument_type=FUTURE&expiry=2026-08-28&interval=5minute&start=2026-07-28T09:15:00%2B05:30&end=2026-07-28T15:30:00%2B05:30",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "candles", ""],
+              "query": [
+                { "key": "exchange", "value": "NFO" },
+                { "key": "symbol", "value": "NIFTY" },
+                { "key": "instrument_type", "value": "FUTURE" },
+                {
+                  "key": "expiry",
+                  "value": "2026-08-28",
+                  "description": "Required for FUTURE/OPTION (YYYY-MM-DD). Adjust to a listed expiry."
+                },
+                { "key": "interval", "value": "5minute" },
+                { "key": "start", "value": "2026-07-28T09:15:00%2B05:30" },
+                { "key": "end", "value": "2026-07-28T15:30:00%2B05:30" }
+              ]
+            },
+            "description": "Futures require `expiry` when not using `key`. Prefer fetching the futures chain first to pick a real key/expiry."
+          },
+          "response": []
+        },
+        {
+          "name": "Options — CE by key",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/candles/?key=NFO:NIFTY:OPTION:{{niftyOptionExpiry}}:23900:CE&interval=1minute&start=2026-07-28T09:15:00%2B05:30&end=2026-07-28T15:30:00%2B05:30",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "candles", ""],
+              "query": [
+                {
+                  "key": "key",
+                  "value": "NFO:NIFTY:OPTION:{{niftyOptionExpiry}}:23900:CE",
+                  "description": "Format: NFO:SYMBOL:OPTION:YYYY-MM-DD:STRIKE:CE|PE"
+                },
+                { "key": "interval", "value": "1minute" },
+                { "key": "start", "value": "2026-07-28T09:15:00%2B05:30" },
+                { "key": "end", "value": "2026-07-28T15:30:00%2B05:30" }
+              ]
+            },
+            "description": "Option candles by canonical key. Use the options chain response to discover keys that have coverage."
+          },
+          "response": []
+        },
+        {
+          "name": "Options — by composite fields",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/candles/?exchange=NFO&symbol=NIFTY&instrument_type=OPTION&expiry={{niftyOptionExpiry}}&strike=23900&option_type=CE&interval=day&start=2026-07-28T00:00:00%2B05:30&end=2026-07-29T00:00:00%2B05:30",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "candles", ""],
+              "query": [
+                { "key": "exchange", "value": "NFO" },
+                { "key": "symbol", "value": "NIFTY" },
+                { "key": "instrument_type", "value": "OPTION" },
+                { "key": "expiry", "value": "{{niftyOptionExpiry}}" },
+                {
+                  "key": "strike",
+                  "value": "23900",
+                  "description": "Required for OPTION"
+                },
+                {
+                  "key": "option_type",
+                  "value": "CE",
+                  "description": "CE or PE"
+                },
+                { "key": "interval", "value": "day" },
+                { "key": "start", "value": "2026-07-28T00:00:00%2B05:30" },
+                { "key": "end", "value": "2026-07-29T00:00:00%2B05:30" }
+              ]
+            },
+            "description": "Options need `expiry`, `strike`, and `option_type` when not using `key`."
+          },
+          "response": []
+        },
+        {
+          "name": "Auth — Bearer token instead of X-API-Key",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                { "key": "token", "value": "{{apiKey}}", "type": "string" }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/candles/?key=NSE:NIFTY:INDEX&interval=day&start=2026-07-28T00:00:00%2B05:30&end=2026-07-29T00:00:00%2B05:30",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "candles", ""],
+              "query": [
+                { "key": "key", "value": "NSE:NIFTY:INDEX" },
+                { "key": "interval", "value": "day" },
+                { "key": "start", "value": "2026-07-28T00:00:00%2B05:30" },
+                { "key": "end", "value": "2026-07-29T00:00:00%2B05:30" }
+              ]
+            },
+            "description": "Same as X-API-Key: send `Authorization: Bearer {{apiKey}}`."
+          },
+          "response": []
+        },
+        {
+          "name": "Error — missing API key (401)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/candles/?key=NSE:NIFTY:INDEX&start=2026-07-28T00:00:00%2B05:30&end=2026-07-29T00:00:00%2B05:30",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "candles", ""],
+              "query": [
+                { "key": "key", "value": "NSE:NIFTY:INDEX" },
+                { "key": "start", "value": "2026-07-28T00:00:00%2B05:30" },
+                { "key": "end", "value": "2026-07-29T00:00:00%2B05:30" }
+              ]
+            },
+            "description": "Expect 401 when the server has `API_KEY` set and no key is sent."
+          },
+          "response": []
+        },
+        {
+          "name": "Error — range too large for 1minute (400)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/candles/?key=NSE:NIFTY:INDEX&interval=1minute&start=2026-01-01T00:00:00%2B05:30&end=2026-02-01T00:00:00%2B05:30",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "candles", ""],
+              "query": [
+                { "key": "key", "value": "NSE:NIFTY:INDEX" },
+                { "key": "interval", "value": "1minute" },
+                { "key": "start", "value": "2026-01-01T00:00:00%2B05:30" },
+                { "key": "end", "value": "2026-02-01T00:00:00%2B05:30" }
+              ]
+            },
+            "description": "`1minute` max span is 5 days; this ~30-day window returns 400."
+          },
+          "response": []
+        },
+        {
+          "name": "Error — unknown instrument (404)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/candles/?key=NSE:NOPE:EQUITY&start=2026-07-28T00:00:00%2B05:30&end=2026-07-29T00:00:00%2B05:30",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "candles", ""],
+              "query": [
+                { "key": "key", "value": "NSE:NOPE:EQUITY" },
+                { "key": "start", "value": "2026-07-28T00:00:00%2B05:30" },
+                { "key": "end", "value": "2026-07-29T00:00:00%2B05:30" }
+              ]
+            },
+            "description": "Unknown `key` → 404."
+          },
+          "response": []
+        },
+        {
+          "name": "Error — missing identity (400)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/candles/?interval=day&start=2026-07-28T00:00:00%2B05:30&end=2026-07-29T00:00:00%2B05:30",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "candles", ""],
+              "query": [
+                { "key": "interval", "value": "day" },
+                { "key": "start", "value": "2026-07-28T00:00:00%2B05:30" },
+                { "key": "end", "value": "2026-07-29T00:00:00%2B05:30" }
+              ]
+            },
+            "description": "Must provide `key` or `exchange` + `symbol` + `instrument_type`."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Chains — Futures",
+      "description": "Tracked futures with candle coverage spanning `date`. Metadata only (no OHLC).",
+      "item": [
+        {
+          "name": "NIFTY futures chain",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/chains/futures/?underlying=NIFTY&exchange=NSE&date={{sampleDate}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "chains", "futures", ""],
+              "query": [
+                {
+                  "key": "underlying",
+                  "value": "NIFTY",
+                  "description": "Equity/index symbol"
+                },
+                {
+                  "key": "exchange",
+                  "value": "NSE",
+                  "description": "Underlying exchange (NSE for NIFTY, BSE for SENSEX)"
+                },
+                {
+                  "key": "date",
+                  "value": "{{sampleDate}}",
+                  "description": "Coverage day YYYY-MM-DD"
+                }
+              ]
+            },
+            "description": "Returns futures contracts where `data_start ≤ date ≤ data_end`. Use returned `key`/`expiry` for candle requests."
+          },
+          "response": []
+        },
+        {
+          "name": "SENSEX futures chain",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/chains/futures/?underlying=SENSEX&exchange=BSE&date={{sampleDate}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "chains", "futures", ""],
+              "query": [
+                { "key": "underlying", "value": "SENSEX" },
+                { "key": "exchange", "value": "BSE" },
+                { "key": "date", "value": "{{sampleDate}}" }
+              ]
+            },
+            "description": "SENSEX futures live on BFO; underlying is listed on BSE."
+          },
+          "response": []
+        },
+        {
+          "name": "Error — missing API key (401)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/chains/futures/?underlying=NIFTY&exchange=NSE&date={{sampleDate}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "chains", "futures", ""],
+              "query": [
+                { "key": "underlying", "value": "NIFTY" },
+                { "key": "exchange", "value": "NSE" },
+                { "key": "date", "value": "{{sampleDate}}" }
+              ]
+            },
+            "description": "Expect 401 when `API_KEY` is configured and no key is sent."
+          },
+          "response": []
+        },
+        {
+          "name": "Error — unknown underlying (404)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/chains/futures/?underlying=NOPE&exchange=NSE&date={{sampleDate}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "chains", "futures", ""],
+              "query": [
+                { "key": "underlying", "value": "NOPE" },
+                { "key": "exchange", "value": "NSE" },
+                { "key": "date", "value": "{{sampleDate}}" }
+              ]
+            },
+            "description": "Unknown underlying symbol/exchange → 404."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Chains — Options",
+      "description": "Tracked options with coverage on `date`. Optional `expiry` filter. Metadata only; ATM ± K window, not full exchange chain.",
+      "item": [
+        {
+          "name": "NIFTY options chain (all expiries)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/chains/options/?underlying=NIFTY&exchange=NSE&date={{sampleDate}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "chains", "options", ""],
+              "query": [
+                { "key": "underlying", "value": "NIFTY" },
+                { "key": "exchange", "value": "NSE" },
+                { "key": "date", "value": "{{sampleDate}}" }
+              ]
+            },
+            "description": "All tracked CE/PE rows with candle coverage on `date`, across expiries. Top-level `expiry` is null; each contract includes its own expiry."
+          },
+          "response": []
+        },
+        {
+          "name": "NIFTY options chain (filter by expiry)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/chains/options/?underlying=NIFTY&exchange=NSE&date={{sampleDate}}&expiry={{niftyOptionExpiry}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "chains", "options", ""],
+              "query": [
+                { "key": "underlying", "value": "NIFTY" },
+                { "key": "exchange", "value": "NSE" },
+                { "key": "date", "value": "{{sampleDate}}" },
+                {
+                  "key": "expiry",
+                  "value": "{{niftyOptionExpiry}}",
+                  "description": "Optional. Restrict to one expiry."
+                }
+              ]
+            },
+            "description": "Same as all-expiries, filtered to one expiry. Illiquid strikes with no broker history are omitted."
+          },
+          "response": []
+        },
+        {
+          "name": "SENSEX options chain",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/chains/options/?underlying=SENSEX&exchange=BSE&date={{sampleDate}}&expiry=2026-08-20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "chains", "options", ""],
+              "query": [
+                { "key": "underlying", "value": "SENSEX" },
+                { "key": "exchange", "value": "BSE" },
+                { "key": "date", "value": "{{sampleDate}}" },
+                {
+                  "key": "expiry",
+                  "value": "2026-08-20",
+                  "description": "Optional. Adjust to a SENSEX weekly/monthly expiry you track, or omit for all."
+                }
+              ]
+            },
+            "description": "Same as NIFTY; underlying exchange is BSE."
+          },
+          "response": []
+        },
+        {
+          "name": "Error — missing API key (401)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/chains/options/?underlying=NIFTY&exchange=NSE&date={{sampleDate}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "chains", "options", ""],
+              "query": [
+                { "key": "underlying", "value": "NIFTY" },
+                { "key": "exchange", "value": "NSE" },
+                { "key": "date", "value": "{{sampleDate}}" }
+              ]
+            },
+            "description": "Expect 401 when `API_KEY` is configured and no key is sent."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
