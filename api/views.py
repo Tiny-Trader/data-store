@@ -113,14 +113,15 @@ class OptionsChainView(APIView):
     def get(self, request: Request) -> Response:
         params = _q(request)
         day = parse_day(params.get("date"))
-        expiry = parse_day(params.get("expiry"), field="expiry")
+        expiry_raw = (params.get("expiry") or "").strip()
+        expiry = parse_day(expiry_raw, field="expiry") if expiry_raw else None
         underlying = resolve_underlying(params.get("underlying"), params.get("exchange"))
         contracts = chain_contracts(underlying, InstrumentType.OPTION, day, expiry=expiry)
         return Response(
             {
                 "underlying": underlying.key,
                 "date": day.isoformat(),
-                "expiry": expiry.isoformat(),
+                "expiry": expiry.isoformat() if expiry else None,
                 "count": len(contracts),
                 "contracts": [serialize_contract(c) for c in contracts],
             }

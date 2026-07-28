@@ -39,8 +39,12 @@ def parse_day(raw: str | None, *, field: str = "date") -> date:
 def parse_datetime(raw: str | None, *, field: str) -> datetime:
     if not raw:
         raise ValidationError({field: "required (ISO-8601 datetime)"})
+    # Query strings decode "+" as space, so "+05:30" often arrives as " 05:30".
+    normalized = raw.strip().replace("Z", "+00:00")
+    if " " in normalized and "+" not in normalized[10:]:
+        normalized = normalized.replace(" ", "+", 1)
     try:
-        dt = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+        dt = datetime.fromisoformat(normalized)
     except ValueError as exc:
         raise ValidationError({field: "invalid datetime, expected ISO-8601"}) from exc
     if dt.tzinfo is None:

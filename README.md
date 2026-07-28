@@ -82,11 +82,12 @@ on hosted instances; when unset, auth is open (local/dev). Send
 | `GET` | `/api/health/` | no | `{"status":"ok"}` |
 | `GET` | `/api/candles/` | yes | OHLCV(+OI) via DuckDB reader |
 | `GET` | `/api/chains/futures/` | yes | Metadata for contracts covering `date` |
-| `GET` | `/api/chains/options/` | yes | Same; **`expiry` required** |
+| `GET` | `/api/chains/options/` | yes | Same; optional `expiry` filter |
 
 **Candles** — identify by `key=…` or composite (`exchange`, `symbol`,
 `instrument_type`, plus F&O fields). Also: `interval` (default `day`),
 `start`, `end` (ISO-8601). Range caps apply (e.g. 1m ≤ 5 days).
+In query strings, encode timezone `+` as `%2B` (a bare `+` becomes a space).
 
 ```bash
 curl -H "X-API-Key: $API_KEY" \
@@ -95,11 +96,14 @@ curl -H "X-API-Key: $API_KEY" \
 
 **Chains** — catalog ∩ coverage on day `D` (`data_start ≤ D ≤ data_end`).
 Metadata only (key, expiry, strike, …); no OHLC in the response. This is the
-**tracked** window (ATM ± K), not the full exchange chain.
+**tracked** window (ATM ± K), not the full exchange chain. Options accept an
+optional `expiry` filter; omit it to list all covered contracts for that day.
 
 ```bash
 curl -H "X-API-Key: $API_KEY" \
   "http://localhost:8000/api/chains/futures/?underlying=NIFTY&exchange=NSE&date=2024-06-03"
+curl -H "X-API-Key: $API_KEY" \
+  "http://localhost:8000/api/chains/options/?underlying=NIFTY&exchange=NSE&date=2024-06-03"
 curl -H "X-API-Key: $API_KEY" \
   "http://localhost:8000/api/chains/options/?underlying=NIFTY&exchange=NSE&date=2024-06-03&expiry=2024-06-27"
 ```

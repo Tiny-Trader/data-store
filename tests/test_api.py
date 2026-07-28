@@ -141,6 +141,22 @@ def test_candles_by_composite(auth_client: APIClient, store, future: Instrument)
     assert resp.json()["count"] == 1
 
 
+def test_candles_accepts_plus_decoded_as_space(auth_client: APIClient, store, future: Instrument):
+    """Query strings turn '+' into space; clients often send unencoded offsets."""
+    storage.write(future, make_candles("2024-06-03", 3))
+    resp = auth_client.get(
+        "/api/candles/",
+        {
+            "key": future.key,
+            "interval": "day",
+            "start": "2024-06-03T00:00:00 05:30",
+            "end": "2024-06-04T00:00:00 05:30",
+        },
+    )
+    assert resp.status_code == 200
+    assert resp.json()["count"] == 1
+
+
 def test_candles_rejects_oversized_range(auth_client: APIClient, future: Instrument):
     resp = auth_client.get(
         "/api/candles/",
@@ -203,11 +219,11 @@ def test_futures_chain_metadata_only(auth_client: APIClient, nifty: Instrument, 
     assert "open" not in row
 
 
-def test_options_chain_requires_expiry_and_filters(
+def test_options_chain_all_expiries_and_optional_filter(
     auth_client: APIClient, nifty: Instrument, call: Instrument, put: Instrument
 ):
     other_expiry = EXPIRY + timedelta(days=7)
-    Instrument.objects.create(
+    other = Instrument.objects.create(
         instrument_type=InstrumentType.OPTION,
         exchange=Exchange.NFO,
         symbol="NIFTY",
@@ -219,13 +235,17 @@ def test_options_chain_requires_expiry_and_filters(
         data_end=DAY,
     )
 
-    missing = auth_client.get(
+    all_resp = auth_client.get(
         "/api/chains/options/",
         {"underlying": "NIFTY", "exchange": "NSE", "date": DAY.isoformat()},
     )
-    assert missing.status_code == 400
+    assert all_resp.status_code == 200
+    all_body = all_resp.json()
+    assert all_body["expiry"] is None
+    assert all_body["count"] == 3
+    assert {c["key"] for c in all_body["contracts"]} == {call.key, put.key, other.key}
 
-    resp = auth_client.get(
+    filtered = auth_client.get(
         "/api/chains/options/",
         {
             "underlying": "NIFTY",
@@ -234,8 +254,9 @@ def test_options_chain_requires_expiry_and_filters(
             "expiry": EXPIRY.isoformat(),
         },
     )
-    assert resp.status_code == 200
-    body = resp.json()
+    assert filtered.status_code == 200
+    body = filtered.json()
+    assert body["expiry"] == EXPIRY.isoformat()
     assert body["count"] == 2
     keys = {c["key"] for c in body["contracts"]}
     assert keys == {call.key, put.key}
