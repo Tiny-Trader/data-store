@@ -135,3 +135,34 @@ class BrokerToken(TimeStampedModel):
 
     def __str__(self) -> str:
         return f"{self.instrument.symbol} @ {self.broker_id} ({self.token})"
+
+
+# --- Admin-oriented proxies (typed changelists; same table) -----------------
+
+
+class EquityInstrument(Instrument):
+    class Meta:
+        proxy = True
+        verbose_name = "Equity"
+        verbose_name_plural = "Equities"
+
+
+class IndexInstrument(Instrument):
+    class Meta:
+        proxy = True
+        verbose_name = "Index"
+        verbose_name_plural = "Indices"
+
+
+class FutureInstrument(Instrument):
+    class Meta:
+        proxy = True
+        verbose_name = "Future"
+        verbose_name_plural = "Futures"
+
+
+class OptionInstrument(Instrument):
+    class Meta:
+        proxy = True
+        verbose_name = "Option"
+        verbose_name_plural = "Options"

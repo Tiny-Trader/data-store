@@ -1,0 +1,165 @@
+{% extends "admin/index.html" %}
+
+{% block content %}
+{% if coverage %}
+<style>
+  #tt-coverage {
+    margin: 0 0 1.5rem;
+    padding: 0;
+  }
+  #tt-coverage .tt-summary {
+    margin: 0 0 0.75rem;
+    padding: 0.65rem 0.85rem;
+    border-radius: 4px;
+    background: var(--darkened-bg, #f8f8f8);
+    border: 1px solid var(--border, #eee);
+    line-height: 1.45;
+    font-size: 0.95rem;
+  }
+  #tt-coverage .tt-summary strong { font-weight: 600; }
+  #tt-coverage .tt-summary a { font-weight: 600; }
+  #tt-coverage .tt-muted { opacity: 0.75; }
+  #tt-coverage table.tt-table {
+    width: 100%;
+    margin: 0 0 1rem;
+    border-collapse: collapse;
+    table-layout: auto;
+  }
+  #tt-coverage table.tt-table caption {
+    caption-side: top;
+    text-align: left;
+    padding: 0.4rem 0;
+    font-weight: 600;
+    font-size: 0.85rem;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    opacity: 0.85;
+  }
+  #tt-coverage table.tt-table th,
+  #tt-coverage table.tt-table td {
+    padding: 0.45rem 0.75rem;
+    text-align: left;
+    vertical-align: middle;
+    white-space: nowrap;
+    border-bottom: 1px solid var(--border, #eee);
+  }
+  #tt-coverage table.tt-table thead th {
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: none;
+    letter-spacing: normal;
+    opacity: 0.8;
+    border-bottom: 1px solid var(--border, #ccc);
+  }
+  #tt-coverage table.tt-table tbody th {
+    font-weight: 600;
+  }
+  #tt-coverage table.tt-table .num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  #tt-coverage .tt-frac {
+    font-variant-numeric: tabular-nums;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  #tt-coverage .tt-empty {
+    margin-left: 0.5rem;
+    opacity: 0.85;
+  }
+</style>
+
+<div id="tt-coverage" class="module">
+  <p class="tt-summary">
+    <strong>
+      <a href="{% url 'admin:ingestion_watchlist_changelist' %}">Coverage</a>
+    </strong>
+    — <span class="tt-frac">{{ coverage.with_data }}/{{ coverage.tracked }}</span> tracked instruments have candles
+    {% if coverage.latest_data_end %}
+      <span class="tt-muted">· latest {{ coverage.latest_data_end|date:"Y-m-d" }}</span>
+    {% endif %}
+    <span class="tt-muted">· {{ coverage.watchlist_active }} active watchlist</span>
+  </p>
+
+  <table class="tt-table">
+    <caption>By instrument type</caption>
+    <thead>
+      <tr>
+        <th scope="col">Type</th>
+        <th scope="col" class="num">Tracked</th>
+        <th scope="col" class="num">With data</th>
+        <th scope="col" class="num">Empty</th>
+        <th scope="col">Latest data_end</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in coverage.types %}
+      <tr>
+        <th scope="row">
+          {% if row.instrument_type == "EQUITY" %}
+            <a href="{{ coverage_urls.equities }}">{{ row.label }}</a>
+          {% elif row.instrument_type == "INDEX" %}
+            <a href="{{ coverage_urls.indices }}">{{ row.label }}</a>
+          {% elif row.instrument_type == "FUTURE" %}
+            <a href="{{ coverage_urls.futures }}">{{ row.label }}</a>
+          {% elif row.instrument_type == "OPTION" %}
+            <a href="{{ coverage_urls.options }}">{{ row.label }}</a>
+          {% else %}
+            {{ row.label }}
+          {% endif %}
+        </th>
+        <td class="num">{{ row.tracked }}</td>
+        <td class="num">{{ row.with_data }}</td>
+        <td class="num">
+          {% if row.empty and row.instrument_type == "OPTION" %}
+            <a href="{{ coverage_urls.options_empty }}">{{ row.empty }}</a>
+          {% else %}
+            {{ row.empty }}
+          {% endif %}
+        </td>
+        <td>{% if row.data_end %}{{ row.data_end|date:"Y-m-d" }}{% else %}—{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {% if coverage.fno %}
+  <table class="tt-table">
+    <caption>F&amp;O watchlist underlyings</caption>
+    <thead>
+      <tr>
+        <th scope="col">Underlying</th>
+        <th scope="col">Futures</th>
+        <th scope="col">Options</th>
+        <th scope="col">Underlying data_end</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in coverage.fno %}
+      <tr>
+        <th scope="row">{{ row.symbol }}</th>
+        <td>
+          <a class="tt-frac" href="{% url 'admin:catalog_futureinstrument_changelist' %}?underlying={{ row.underlying_id }}">
+            {{ row.futures_with_data }}/{{ row.futures_tracked }}
+          </a>
+        </td>
+        <td>
+          <a class="tt-frac" href="{% url 'admin:catalog_optioninstrument_changelist' %}?underlying={{ row.underlying_id }}">
+            {{ row.options_with_data }}/{{ row.options_tracked }}
+          </a>
+          {% if row.options_empty %}
+            <a class="tt-empty" href="{% url 'admin:catalog_optioninstrument_changelist' %}?underlying={{ row.underlying_id }}&amp;has_data=no">
+              ({{ row.options_empty }} empty)
+            </a>
+          {% endif %}
+        </td>
+        <td>{% if row.equity_data_end %}{{ row.equity_data_end|date:"Y-m-d" }}{% else %}—{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+</div>
+{% endif %}
+{{ block.super }}
+{% endblock %}
