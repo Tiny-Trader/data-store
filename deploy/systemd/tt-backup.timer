@@ -1,0 +1,10 @@
+[Unit]
+Description=Backup tiny-trader candles + catalog to S3
+
+[Timer]
+# After weekday EOD (18:30 IST). Persistent catches missed runs.
+OnCalendar=Mon-Fri 19:00 Asia/Kolkata
+Persistent=true
+
+[Install]
+WantedBy=timers.target

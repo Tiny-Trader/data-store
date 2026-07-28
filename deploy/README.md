@@ -104,18 +104,41 @@ sudo systemctl restart tt-api
 sudo cp deploy/systemd/tt-api.service \
         deploy/systemd/tt-eod.service \
         deploy/systemd/tt-eod.timer \
+        deploy/systemd/tt-backup.service \
+        deploy/systemd/tt-backup.timer \
         /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable --now tt-api.service
 sudo systemctl enable --now tt-eod.timer
+sudo systemctl enable --now tt-backup.timer
 ```
 
 | Unit | Role |
 |------|------|
-| `tt-api.service` | gunicorn (1 worker) on `:8000` + WhiteNoise for admin CSS |
+| `tt-api.service` | gunicorn (gthread) on `:8000` + WhiteNoise for admin CSS |
 | `tt-eod.timer` | Mon–Fri 18:30 IST → `sync_eod` |
+| `tt-backup.timer` | Mon–Fri 19:00 IST → S3 backup (candles + SQLite) |
 
 Fix Poetry path with `which poetry` if the unit fails to start.
+
+## Backups (S3)
+
+Logical name **tt-dev**; bucket is `tt-dev-tiny-trader` in `ap-south-1` (`tt-dev` alone was already taken globally on S3).
+
+| Prefix | Contents | Retention |
+|--------|----------|-----------|
+| `data-store/candles/` | Parquet tree (`aws s3 sync`) | Rolling mirror (no expiry) |
+| `data-store/catalog/db-YYYY-MM-DD.sqlite3` | SQLite snapshot | **7 days** (bucket lifecycle on `catalog/`) |
+
+Script: `deploy/backup.sh` (optional overrides in gitignored `deploy/backup.env`). EC2 uses instance role `tt-data-store-ec2`.
+
+```bash
+sudo systemctl start tt-backup.service
+journalctl -u tt-backup.service -n 50
+aws s3 ls s3://tt-dev-tiny-trader/data-store/catalog/
+```
+
+Restore (sketch): sync candles back into `PARQUET_ROOT/candles/`, copy a `db-*.sqlite3` to `db.sqlite3`, restart `tt-api`.
 
 ## Operate
 
@@ -128,7 +151,7 @@ curl -H "X-API-Key: $API_KEY" \
 
 # EOD (needs TT_*_CONFIG in server .env)
 ssh -i "$DEPLOY_KEY" "$DEPLOY_HOST"
-systemctl list-timers tt-eod.timer
+systemctl list-timers tt-eod.timer tt-backup.timer
 sudo systemctl start tt-eod.service
 journalctl -u tt-eod.service -f
 ```

@@ -26,3 +26,6 @@ db.sqlite3-*
 deploy/keys/
 deploy/host.local
 staticfiles/
+
+# Local backup overrides
+deploy/backup.env

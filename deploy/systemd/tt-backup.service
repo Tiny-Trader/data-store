@@ -1,0 +1,16 @@
+[Unit]
+Description=tiny-trader data-store backup to S3 (tt-dev)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/opt/tiny-trader/data-store
+Environment=BACKUP_BUCKET=tt-dev-tiny-trader
+Environment=BACKUP_PREFIX=data-store
+Environment=AWS_DEFAULT_REGION=ap-south-1
+# Prefer instance role; optional shared creds file if no role:
+# Environment=AWS_SHARED_CREDENTIALS_FILE=/home/ubuntu/.aws/credentials
+ExecStart=/opt/tiny-trader/data-store/deploy/backup.sh
