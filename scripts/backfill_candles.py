@@ -4,13 +4,14 @@ This is deliberately NOT part of the running system (the EOD job only fetches
 t-1). Backfill is a manual, occasional operation, so it lives here as a script.
 
 AngelOne caps 1-minute history per request (~30 days), so the range is fetched
-in windows and merged idempotently into the Parquet store.
+in windows and merged idempotently into the Parquet store. Windows already on
+disk are skipped; failed broker calls are retried with backoff.
 
 Usage::
 
     poetry run python scripts/backfill_candles.py \
-        --symbol NIFTY --exchange NSE --type index \
-        --start 2026-06-01 --end 2026-06-30 --broker angelone
+        --symbol NIFTY --exchange NSE --type INDEX \
+        --start 2021-07-01 --end 2026-07-24 --broker angelone
 """
 
 from __future__ import annotations
@@ -18,6 +19,7 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+import time
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -37,6 +39,7 @@ from ingestion.broker import TTBroker  # noqa: E402
 from ingestion.normalize import candles_to_frame  # noqa: E402
 
 IST = ZoneInfo("Asia/Kolkata")
+_MAX_BACKOFF_SEC = 60.0
 
 
 def _ensure_instrument(symbol: str, exchange: str, itype: str) -> Instrument:
@@ -61,27 +64,88 @@ def _windows(start: date, end: date, chunk_days: int):
         cur = win_end + timedelta(days=1)
 
 
-def backfill(inst: Instrument, broker: TTBroker, start: date, end: date, chunk_days: int) -> None:
+def _window_complete(inst: Instrument, start: date, end: date) -> bool:
+    """True if both ends of the window already have stored candles (resume skip)."""
+    start_ok = any(
+        storage.has_day(inst, start + timedelta(days=i))
+        for i in range(5)
+        if start + timedelta(days=i) <= end
+    )
+    if not start_ok:
+        return False
+    return any(
+        storage.has_day(inst, end - timedelta(days=i))
+        for i in range(5)
+        if end - timedelta(days=i) >= start
+    )
+
+
+def _fetch_window(
+    broker: TTBroker,
+    inst: Instrument,
+    win_start: datetime,
+    win_end: datetime,
+    retries: int,
+):
+    last_exc: Exception | None = None
+    for attempt in range(1, retries + 1):
+        try:
+            return broker.historical_1m_range(inst, win_start, win_end)
+        except Exception as exc:
+            last_exc = exc
+            if attempt >= retries:
+                break
+            backoff = min(2.0**attempt, _MAX_BACKOFF_SEC)
+            print(
+                f"  {win_start.date()}..{win_end.date()}: "
+                f"attempt {attempt}/{retries} failed ({type(exc).__name__}), "
+                f"retry in {backoff:.0f}s"
+            )
+            time.sleep(backoff)
+    assert last_exc is not None
+    raise last_exc
+
+
+def backfill(
+    inst: Instrument,
+    broker: TTBroker,
+    start: date,
+    end: date,
+    chunk_days: int,
+    *,
+    retries: int = 5,
+    pause_sec: float = 1.0,
+) -> None:
     total = 0
+    skipped = 0
     first_ts: datetime | None = None
     last_ts: datetime | None = None
     for win_start, win_end in _windows(start, end, chunk_days):
-        candles = broker.historical_1m_range(inst, win_start, win_end)
+        if _window_complete(inst, win_start.date(), win_end.date()):
+            print(f"  {win_start.date()}..{win_end.date()}: skip (already stored)")
+            skipped += 1
+            continue
+        candles = _fetch_window(broker, inst, win_start, win_end, retries)
         if not candles:
             print(f"  {win_start.date()}..{win_end.date()}: 0 candles")
-            continue
-        frame = candles_to_frame(candles)
-        rows = storage.write(inst, frame)
-        total += rows
-        first_ts = min(first_ts or candles[0].timestamp, candles[0].timestamp)
-        last_ts = max(last_ts or candles[-1].timestamp, candles[-1].timestamp)
-        print(f"  {win_start.date()}..{win_end.date()}: {rows} rows")
+        else:
+            frame = candles_to_frame(candles)
+            rows = storage.write(inst, frame)
+            total += rows
+            first_ts = min(first_ts or candles[0].timestamp, candles[0].timestamp)
+            last_ts = max(last_ts or candles[-1].timestamp, candles[-1].timestamp)
+            print(f"  {win_start.date()}..{win_end.date()}: {rows} rows")
+        if pause_sec > 0:
+            time.sleep(pause_sec)
 
-    if total and first_ts and last_ts:
+    if first_ts and last_ts:
         inst.data_start = min(inst.data_start or first_ts.date(), first_ts.date())
         inst.data_end = max(inst.data_end or last_ts.date(), last_ts.date())
         inst.save(update_fields=["data_start", "data_end", "updated"])
-    print(f"done: {total} rows, coverage {inst.data_start}..{inst.data_end}")
+    print(
+        f"done: {total} rows written, {skipped} windows skipped, "
+        f"coverage {inst.data_start}..{inst.data_end}"
+    )
 
 
 def main() -> None:
@@ -98,12 +162,22 @@ def main() -> None:
     parser.add_argument("--end", required=True, type=date.fromisoformat)
     parser.add_argument("--broker", default=os.getenv("DEFAULT_BROKER", "angelone"))
     parser.add_argument("--chunk-days", type=int, default=20)
+    parser.add_argument("--retries", type=int, default=5)
+    parser.add_argument("--pause", type=float, default=1.0, help="Seconds between window requests")
     args = parser.parse_args()
 
     inst = _ensure_instrument(args.symbol, args.exchange, args.itype)
     print(f"backfill {inst.symbol} {args.start}..{args.end} via {args.broker}")
     with TTBroker(args.broker) as broker:
-        backfill(inst, broker, args.start, args.end, args.chunk_days)
+        backfill(
+            inst,
+            broker,
+            args.start,
+            args.end,
+            args.chunk_days,
+            retries=args.retries,
+            pause_sec=args.pause,
+        )
 
 
 if __name__ == "__main__":
