@@ -1,0 +1,15 @@
+[Unit]
+Description=tiny-trader EOD candle sync
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/opt/tiny-trader/data-store
+# Credentials live in the gitignored .env (loaded by settings).
+# Adjust Poetry path after install (`which poetry`).
+ExecStart=/home/ubuntu/.local/bin/poetry run python manage.py sync_eod
+Restart=on-failure
+RestartSec=120

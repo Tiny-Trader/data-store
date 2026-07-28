@@ -25,8 +25,4 @@ db.sqlite3-*
 # Local EC2 private keys + host inventory (IPs, etc.)
 deploy/keys/
 deploy/host.local
-deploy/backup.env
-deploy/README.local.md
-# Maintainer-only deploy kit (hosts, buckets, systemd, sync/backup)
-deploy/private/
 staticfiles/

@@ -1,0 +1,23 @@
+[Unit]
+Description=tiny-trader data-store API
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/opt/tiny-trader/data-store
+# Adjust Poetry path after install (`which poetry`).
+ExecStart=/home/ubuntu/.local/bin/poetry run gunicorn \
+    --bind 0.0.0.0:8000 \
+    --worker-class gthread \
+    --workers 1 \
+    --threads 4 \
+    --timeout 120 \
+    config.wsgi:application
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

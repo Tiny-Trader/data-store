@@ -64,13 +64,12 @@ data-store/
 ├── candles/           # Parquet paths, schema, write, DuckDB read/resample
 ├── ingestion/         # Watchlist, tt-connect bridge, EOD sync
 ├── api/               # Read-only REST: health, candles, chains
-├── deploy/            # Public stub only (hosting out of scope)
-├── postman/           # API collection
+├── deploy/            # Prototype EC2: systemd API + EOD timer
 ├── scripts/           # One-off backfill (not part of the daily job)
 └── manage.py
 ```
 
-Self-host however you like; this repo does not publish a production deploy guide.
+Prototype host setup: [`deploy/README.md`](deploy/README.md).
 
 ## REST API
 
@@ -143,8 +142,7 @@ contracts — nearest `n_expiries` and, for options, ATM ± `strike_window` stri
 `sync_eod` fetches one trading day of 1-minute candles via `tt-connect`, writes
 through the broker-agnostic Parquet layer, and updates `data_start`/`data_end`.
 It is paced, retried with backoff, and resumable (already-stored instrument-days
-are skipped unless `--force`). Schedule it however you host the service
-(e.g. cron or a systemd timer after market close).
+are skipped unless `--force`). Schedule: `deploy/systemd/` (Mon–Fri 18:30 IST).
 
 ## Chains
 
@@ -169,10 +167,10 @@ separate ledger.
 
 ## Status
 
-In place: IST-aware settings, durable catalog + admin coverage views, Parquet
-candle layer (write + DuckDB read/resample), watchlist + `tt-connect` EOD
-ingestion, backfill script, read-only REST API (health / candles / chains),
-and tests.
+In place: IST-aware settings, durable catalog + admin, Parquet candle layer
+(write + DuckDB read/resample), watchlist + `tt-connect` EOD ingestion,
+backfill script, systemd scheduling, read-only REST API (health / candles /
+chains), and tests.
 
 Not yet built: purchased-data upload path; chain day-snapshot (OHLCV in chain
-response); bulk Parquet export for backtesters.
+response).
